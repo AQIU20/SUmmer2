@@ -3,12 +3,26 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import NearestNeighbors
 from typing import List, Optional
 
+
 def run_psm(
     exp_df: pd.DataFrame,
     ctrl_df: pd.DataFrame,
     columns: Optional[List[str]] = None,
+    n_results: Optional[int] = None,
 ) -> pd.DataFrame:
-    """根据给定列执行倾向性得分匹配并返回匹配后的对照组数据"""
+    """根据给定列执行倾向性得分匹配并返回按距离排序后的对照组数据
+
+    Parameters
+    ----------
+    exp_df : DataFrame
+        实验组数据
+    ctrl_df : DataFrame
+        对照组数据
+    columns : List[str] | None
+        用于匹配的列，None 表示使用全部列
+    n_results : int | None
+        返回距离最近的前 n_results 个结果，None 表示返回全部匹配结果
+    """
 
     # 检查表头一致
     if list(exp_df.columns) != list(ctrl_df.columns):
@@ -44,11 +58,15 @@ def run_psm(
         -1, 1
     )
     nn = NearestNeighbors(n_neighbors=1, algorithm="auto").fit(ctrl_scores)
-    _, indices = nn.kneighbors(exp_scores)
+    distances, indices = nn.kneighbors(exp_scores)
     matched_ctrl_indices = (
         data[data["treatment"] == 0].iloc[indices.flatten()].index
     )
 
-    # 返回原始对照组中与实验组匹配的行
-    matched_ctrl = ctrl_df.loc[matched_ctrl_indices]
-    return matched_ctrl.reset_index(drop=True)
+    # 按距离从小到大排序并限制返回数量
+    matched_ctrl = ctrl_df.loc[matched_ctrl_indices].copy()
+    matched_ctrl["match_distance"] = distances.flatten()
+    matched_ctrl = matched_ctrl.sort_values("match_distance")
+    if n_results is not None:
+        matched_ctrl = matched_ctrl.head(int(n_results))
+    return matched_ctrl.drop(columns="match_distance").reset_index(drop=True)

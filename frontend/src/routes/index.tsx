@@ -31,6 +31,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedCols, setSelectedCols] = useState<string[]>([]);
+  const [resultLimit, setResultLimit] = useState('10');
 
   useEffect(() => {
     if (
@@ -70,11 +71,12 @@ function App() {
     expData.length > 0 &&
     ctrlData.length > 0 &&
     JSON.stringify(expData[0]) === JSON.stringify(ctrlData[0]) &&
-    selectedCols.length > 0;
+    selectedCols.length > 0 &&
+    Number(resultLimit) > 0;
 
   const handleMatch = async () => {
     if (!canMatch) {
-      setError('请先上传表头一致的实验组和对照组CSV文件，并选择匹配变量');
+      setError('请先上传表头一致的实验组和对照组CSV文件，并选择匹配变量且填写输出结果数');
       return;
     }
     setError(null);
@@ -85,6 +87,7 @@ function App() {
       formData.append('experiment', expFile!);
       formData.append('control', ctrlFile!);
       formData.append('columns', JSON.stringify(selectedCols));
+      formData.append('n_results', resultLimit);
       const res = await fetch('http://localhost:8000/api/psm', {
         method: 'POST',
         body: formData,
@@ -184,6 +187,16 @@ function App() {
                   {header}
                 </label>
               ))}
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <label className="font-semibold">输出结果数</label>
+              <input
+                type="number"
+                min="1"
+                value={resultLimit}
+                onChange={(e) => setResultLimit(e.target.value)}
+                className="border px-2 py-1 rounded w-24"
+              />
             </div>
           </div>
         )}
