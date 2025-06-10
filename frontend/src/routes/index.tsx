@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 // @ts-ignore: papaparse may not have types installed. Run: npm install --save-dev @types/papaparse
 import Papa from 'papaparse';
@@ -30,6 +30,20 @@ function App() {
   const [result, setResult] = useState<{ columns: string[]; data: any[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedCols, setSelectedCols] = useState<string[]>([]);
+  const [resultLimit, setResultLimit] = useState('10');
+
+  useEffect(() => {
+    if (
+      expData.length > 0 &&
+      ctrlData.length > 0 &&
+      JSON.stringify(expData[0]) === JSON.stringify(ctrlData[0])
+    ) {
+      setSelectedCols(expData[0]);
+    } else {
+      setSelectedCols([]);
+    }
+  }, [expData, ctrlData]);
 
   const handleExpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -56,11 +70,13 @@ function App() {
     expFile && ctrlFile &&
     expData.length > 0 &&
     ctrlData.length > 0 &&
-    JSON.stringify(expData[0]) === JSON.stringify(ctrlData[0]);
+    JSON.stringify(expData[0]) === JSON.stringify(ctrlData[0]) &&
+    selectedCols.length > 0 &&
+    Number(resultLimit) > 0;
 
   const handleMatch = async () => {
     if (!canMatch) {
-      setError('请先上传表头一致的实验组和对照组CSV文件');
+      setError('请先上传表头一致的实验组和对照组CSV文件，并选择匹配变量且填写输出结果数');
       return;
     }
     setError(null);
@@ -70,6 +86,8 @@ function App() {
       const formData = new FormData();
       formData.append('experiment', expFile!);
       formData.append('control', ctrlFile!);
+      formData.append('columns', JSON.stringify(selectedCols));
+      formData.append('n_results', resultLimit);
       const res = await fetch('http://localhost:8000/api/psm', {
         method: 'POST',
         body: formData,
@@ -148,6 +166,39 @@ function App() {
         </div>
         {expData.length > 0 && ctrlData.length > 0 && JSON.stringify(expData[0]) !== JSON.stringify(ctrlData[0]) && (
           <div className="text-red-500 mb-4">两个文件的表头不一致，无法进行匹配</div>
+        )}
+        {canMatch && (
+          <div className="mb-4">
+            <div className="font-semibold mb-2">选择匹配变量</div>
+            <div className="flex flex-wrap gap-4">
+              {expData[0].map((header) => (
+                <label key={header} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedCols.includes(header)}
+                    onChange={() =>
+                      setSelectedCols((cols) =>
+                        cols.includes(header)
+                          ? cols.filter((c) => c !== header)
+                          : [...cols, header]
+                      )
+                    }
+                  />
+                  {header}
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <label className="font-semibold">输出结果数</label>
+              <input
+                type="number"
+                min="1"
+                value={resultLimit}
+                onChange={(e) => setResultLimit(e.target.value)}
+                className="border px-2 py-1 rounded w-24"
+              />
+            </div>
+          </div>
         )}
         {error && <div className="text-red-500 mb-4">{error}</div>}
         <button
