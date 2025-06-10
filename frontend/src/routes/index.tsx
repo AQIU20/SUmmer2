@@ -31,6 +31,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedCols, setSelectedCols] = useState<string[]>([]);
+  const [resultLimit, setResultLimit] = useState(20);
 
   useEffect(() => {
     if (
@@ -85,6 +86,7 @@ function App() {
       formData.append('experiment', expFile!);
       formData.append('control', ctrlFile!);
       formData.append('columns', JSON.stringify(selectedCols));
+      formData.append('limit', resultLimit.toString());
       const res = await fetch('http://localhost:8000/api/psm', {
         method: 'POST',
         body: formData,
@@ -185,6 +187,16 @@ function App() {
                 </label>
               ))}
             </div>
+            <div className="mt-4">
+              <label className="mr-2 font-semibold">匹配结果个数</label>
+              <input
+                type="number"
+                min="1"
+                className="border px-2 py-1 rounded w-24"
+                value={resultLimit}
+                onChange={(e) => setResultLimit(Number(e.target.value))}
+              />
+            </div>
           </div>
         )}
         {error && <div className="text-red-500 mb-4">{error}</div>}
@@ -198,7 +210,7 @@ function App() {
         {result && (
           <div className="mt-8">
             <div className="flex items-center mb-2">
-              <div className="font-semibold text-lg text-blue-700 mr-4">匹配结果（前20行预览）</div>
+              <div className="font-semibold text-lg text-blue-700 mr-4">匹配结果（前{resultLimit}行预览）</div>
               <button
                 className="ml-auto px-4 py-1 rounded bg-green-500 text-white hover:bg-green-600 text-sm"
                 onClick={handleExport}
@@ -216,7 +228,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.data.slice(0, 20).map((row, i) => (
+                  {result.data.slice(0, resultLimit).map((row, i) => (
                     <tr key={i} className="even:bg-blue-50">
                       {result.columns.map((col, j) => (
                         <td key={j} className="px-3 py-2 border-b text-gray-700">{row[col]}</td>
@@ -225,7 +237,9 @@ function App() {
                   ))}
                 </tbody>
               </table>
-              {result.data.length > 20 && <div className="text-xs text-gray-400 p-2">仅预览前20行</div>}
+              {result.data.length > resultLimit && (
+                <div className="text-xs text-gray-400 p-2">仅预览前{resultLimit}行</div>
+              )}
             </div>
           </div>
         )}

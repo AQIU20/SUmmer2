@@ -29,6 +29,7 @@ async def psm_api(
     experiment: UploadFile = File(...),
     control: UploadFile = File(...),
     columns: str | None = Form(None),
+    limit: int = Form(100),
 ):
     exp_df = pd.read_csv(experiment.file)
     ctrl_df = pd.read_csv(control.file)
@@ -44,10 +45,10 @@ async def psm_api(
         matched = run_psm(exp_df, ctrl_df, selected_cols)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"匹配失败: {str(e)}")
-    # 只返回前100行，防止数据过大
+    limit = max(1, min(limit, len(matched)))
     return {
         "columns": list(matched.columns),
-        "data": matched.head(100).to_dict(orient="records")
+        "data": matched.head(limit).to_dict(orient="records")
     }
 
 @app.get("/items/{item_id}")
